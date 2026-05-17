@@ -48,6 +48,7 @@ type module struct {
 	Path         string // full import path, e.g. "ily.dev/foo"
 	Suffix       string // path under the domain, e.g. "foo"
 	CanonicalURL string // e.g. "https://ily.dev/foo/" -- the module's identity
+	GodocURL     string // e.g. "https://pkg.go.dev/ily.dev/foo" -- human landing page
 	RepoURL      string // e.g. "https://github.com/em-ily-dev/foo" -- current source host
 	Branch       string // default branch for go-source links
 	Description  string
@@ -96,6 +97,7 @@ func run() error {
 			Path:         modPath,
 			Suffix:       suffix,
 			CanonicalURL: fmt.Sprintf("https://%s/%s/", *domain, suffix),
+			GodocURL:     "https://pkg.go.dev/" + modPath,
 			RepoURL:      r.HTMLURL,
 			Branch:       r.DefaultBranch,
 			Description:  r.Description,
@@ -248,11 +250,11 @@ var modulePageTmpl = template.Must(template.New("module").Parse(`<!doctype html>
 <title>{{.Path}}</title>
 <meta name="go-import" content="{{.Path}} git {{.RepoURL}}">
 <meta name="go-source" content="{{.Path}} {{.RepoURL}} {{.RepoURL}}/tree/{{.Branch}}{/dir} {{.RepoURL}}/blob/{{.Branch}}{/dir}/{file}#L{line}">
-<meta http-equiv="refresh" content="0; url={{.RepoURL}}">
+<meta http-equiv="refresh" content="0; url={{.GodocURL}}">
 <link rel="canonical" href="{{.CanonicalURL}}">
 </head>
 <body>
-<p>Go module <code>{{.Path}}</code> &mdash; source at <a href="{{.RepoURL}}">{{.RepoURL}}</a>.</p>
+<p>Go module <code>{{.Path}}</code> &mdash; docs at <a href="{{.GodocURL}}">{{.GodocURL}}</a>, source at <a href="{{.RepoURL}}">{{.RepoURL}}</a>.</p>
 </body>
 </html>
 `))
