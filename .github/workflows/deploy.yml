@@ -1,0 +1,64 @@
+name: deploy
+
+# Rebuild and deploy ily.dev to GitHub Pages.
+#
+# Triggers:
+#   push              -- redeploy when the generator changes
+#   schedule          -- hourly catch-up in case a webhook is missed
+#   workflow_dispatch -- manual rebuild from the Actions tab
+#   repository_dispatch (type: module-published)
+#                     -- any em-ily-dev repo can ping this with
+#                        `gh api repos/em-ily-dev/site/dispatches \
+#                           -f event_type=module-published`
+#                        to trigger an immediate rebuild on release.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # :17 past the hour to avoid the top-of-hour scheduler stampede.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [module-published]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One in-flight deploy at a time. Don't cancel a deploy mid-flight --
+# Pages will reject the next one if the previous artifact upload was
+# interrupted.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Generate site
+        env:
+          # The default token lifts the unauthenticated 60-req/hr limit
+          # to 1000/hr -- plenty for scanning a small account.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: go run .
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -119,6 +119,12 @@ func run() error {
 	if err := writeIndex(modules); err != nil {
 		return fmt.Errorf("writing index: %w", err)
 	}
+	// CNAME tells GitHub Pages which custom domain to serve from. Harmless
+	// on hosts that ignore it.
+	cname := filepath.Join(*outputDir, "CNAME")
+	if err := os.WriteFile(cname, []byte(*domain+"\n"), 0o644); err != nil {
+		return fmt.Errorf("writing CNAME: %w", err)
+	}
 
 	log.Printf("wrote %d module pages to %s", len(modules), *outputDir)
 	return nil
