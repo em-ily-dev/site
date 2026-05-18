@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	githubUser = flag.String("user", "em-ily-dev", "GitHub user or org to scan")
+	githubUser = flag.String("user", "em-ily-dev,act-three", "comma-separated GitHub users or orgs to scan")
 	domain     = flag.String("domain", "ily.dev", "vanity import domain")
 	outputDir  = flag.String("output", "public", "output directory")
 )
@@ -42,6 +42,9 @@ type repo struct {
 	Fork          bool   `json:"fork"`
 	Archived      bool   `json:"archived"`
 	Private       bool   `json:"private"`
+	Owner         struct {
+		Login string `json:"login"`
+	} `json:"owner"`
 }
 
 type module struct {
@@ -63,11 +66,16 @@ func main() {
 }
 
 func run() error {
-	repos, err := listRepos(*githubUser)
-	if err != nil {
-		return fmt.Errorf("listing repos: %w", err)
+	var repos []repo
+	for account := range strings.SplitSeq(*githubUser, ",") {
+		account = strings.TrimSpace(account)
+		batch, err := listRepos(account)
+		if err != nil {
+			return fmt.Errorf("listing repos for %s: %w", account, err)
+		}
+		log.Printf("scanned %d public repos for %s", len(batch), account)
+		repos = append(repos, batch...)
 	}
-	log.Printf("scanned %d public repos for %s", len(repos), *githubUser)
 
 	prefix := *domain + "/"
 	seen := map[string]string{} // module path -> repo name (for dup detection)
@@ -180,7 +188,7 @@ func fetchModulePath(r repo) (string, error) {
 	if branch == "" {
 		branch = "main"
 	}
-	url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/go.mod", *githubUser, r.Name, branch)
+	url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/go.mod", r.Owner.Login, r.Name, branch)
 	resp, err := httpClient.Get(url)
 	if err != nil {
 		return "", err
